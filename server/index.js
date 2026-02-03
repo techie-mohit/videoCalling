@@ -108,8 +108,15 @@ io.on("connection", (socket) => {
         io.to(to).emit("negotiationFinal", {from: socket.id, answer});
     });
 
+    socket.on("endCall", (data) => {
+        const {to} = data;
+        io.to(to).emit("callEnded");
+    });
 
-
+    socket.on("muteToggle", (data) => {
+        const {to, isMuted} = data;
+        io.to(to).emit("remoteMuted", {isMuted});
+    });
 
     socket.on("disconnect", () => {
         console.log("Client disconnected:", socket.id);
