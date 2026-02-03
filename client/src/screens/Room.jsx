@@ -1,14 +1,19 @@
 import React, { useEffect, useCallback, useState } from "react";
 import { useSocket } from "../context/SocketProvider";
+import { useNavigate } from "react-router-dom";
 import peer from "../services/peer";
 
 
 
 const Room = () => {
   const socket = useSocket();
+  const navigate = useNavigate();
   const [remoteSocketId, setRemoteSocketId] = useState(null);
   const [myStream, setMyStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState();
+  const [isMuted, setIsMuted] = useState(false);
+  const [isRemoteMuted, setIsRemoteMuted] = useState(false);
+  const [callActive, setCallActive] = useState(false);
 
   // New user joined handler
 
@@ -23,6 +28,7 @@ const Room = () => {
   });
 
   setMyStream(stream);
+  setCallActive(true);
 
   // ✅ add tracks BEFORE offer
   stream.getTracks().forEach(track => {
@@ -44,6 +50,7 @@ const Room = () => {
     });
 
     setMyStream(stream);
+    setCallActive(true);
 
     const ans = await peer.getAnswer(offer);
     socket.emit("callAccepted", { to: from, answer: ans });
@@ -93,6 +100,51 @@ const Room = () => {
     await peer.setRemoteAnswer(answer);
   }, []);
 
+  const stopCall = useCallback(() => {
+    // Stop all media tracks
+    if (myStream) {
+      myStream.getTracks().forEach(track => track.stop());
+      setMyStream(null);
+    }
+
+    // Close peer connection
+    peer.peer.close();
+    
+    // Reset states
+    setCallActive(false);
+    setIsMuted(false);
+    setIsRemoteMuted(false);
+    setRemoteStream(null);
+    setRemoteSocketId(null);
+
+    // Notify other user
+    if (remoteSocketId) {
+      socket.emit("endCall", { to: remoteSocketId });
+    }
+
+    // Navigate back to lobby
+    navigate("/lobby");
+  }, [myStream, remoteSocketId, socket, navigate]);
+
+  const toggleMute = useCallback(() => {
+    if (!myStream) return;
+
+    const audioTracks = myStream.getAudioTracks();
+    if (audioTracks.length === 0) return;
+
+    const newMuteState = !isMuted;
+    audioTracks.forEach(track => {
+      track.enabled = !newMuteState;
+    });
+
+    setIsMuted(newMuteState);
+
+    // Notify other user
+    if (remoteSocketId) {
+      socket.emit("muteToggle", { to: remoteSocketId, isMuted: newMuteState });
+    }
+  }, [myStream, isMuted, remoteSocketId, socket]);
+
   useEffect(() => {
   const handleTrack = (ev) => {
     const [stream] = ev.streams;
@@ -115,12 +167,22 @@ const Room = () => {
 
     socket.on("negotiationFinal", handleNegotiationFinal);
 
+    socket.on("callEnded", () => {
+      stopCall();
+    });
+
+    socket.on("remoteMuted", ({ isMuted }) => {
+      setIsRemoteMuted(isMuted);
+    });
+
     return () => {
       socket.off("newUserJoined", handleUserJoined);
       socket.off("incomingCall", handleIncomingCall);
       socket.off("callAccepted", handleCallAccepted);
       socket.off("negotiationneed", handleNegotiationIncoming);
       socket.off("negotiationFinal", handleNegotiationFinal);
+      socket.off("callEnded");
+      socket.off("remoteMuted");
     };
   }, [socket, handleUserJoined, handleIncomingCall, handleCallAccepted, handleNegotiationIncoming, handleNegotiationFinal]);
 
@@ -146,33 +208,64 @@ const Room = () => {
               </p>
             </div>
 
-            {remoteSocketId && (
-              <button
-                onClick={handleCallUser}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-green-400 to-emerald-600 text-white font-semibold shadow-lg hover:scale-105 hover:shadow-green-500/40 transition-all duration-300"
-              >
-                📞 Start Call
-              </button>
-            )}
+            <div className="flex flex-wrap gap-3">
+              {remoteSocketId && !callActive && (
+                <button
+                  onClick={handleCallUser}
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-green-400 to-emerald-600 text-white font-semibold shadow-lg hover:scale-105 hover:shadow-green-500/40 transition-all duration-300"
+                >
+                  📞 Start Call
+                </button>
+              )}
+
+              {callActive && (
+                <>
+                  <button
+                    onClick={toggleMute}
+                    className={`px-6 py-3 rounded-xl font-semibold shadow-lg hover:scale-105 transition-all duration-300 text-white ${
+                      isMuted
+                        ? "bg-gradient-to-r from-red-500 to-orange-600 hover:shadow-red-500/40"
+                        : "bg-gradient-to-r from-blue-500 to-cyan-600 hover:shadow-blue-500/40"
+                    }`}
+                  >
+                    {isMuted ? "🔇 Unmute" : "🔊 Mute"}
+                  </button>
+
+                  <button
+                    onClick={stopCall}
+                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-red-500 to-pink-600 text-white font-semibold shadow-lg hover:scale-105 hover:shadow-red-500/40 transition-all duration-300"
+                  >
+                    ❌ End Call
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Video Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* My Stream */}
-            <div className="bg-black/40 rounded-xl border border-white/10 p-4">
+            <div className="bg-black/40 rounded-xl border border-white/10 p-4 relative">
               <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
                 👤 My Stream
               </h3>
 
               {myStream ? (
-                <video
-                  autoPlay
-                  muted
-                  playsInline
-                  ref={(video) => video && (video.srcObject = myStream)}
-                  className="w-full h-[260px] rounded-lg object-cover bg-black shadow-inner"
-                />
+                <>
+                  <video
+                    autoPlay
+                    muted
+                    playsInline
+                    ref={(video) => video && (video.srcObject = myStream)}
+                    className="w-full h-[260px] rounded-lg object-cover bg-black shadow-inner"
+                  />
+                  {isMuted && (
+                    <div className="absolute top-8 right-4 bg-red-500/90 text-white px-3 py-1 rounded-lg text-sm font-semibold flex items-center gap-1">
+                      🔇 Muted
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="w-full h-[260px] flex items-center justify-center rounded-lg bg-black/60 text-gray-400">
                   Waiting for camera...
@@ -181,18 +274,25 @@ const Room = () => {
             </div>
 
             {/* Remote Stream */}
-            <div className="bg-black/40 rounded-xl border border-white/10 p-4">
+            <div className="bg-black/40 rounded-xl border border-white/10 p-4 relative">
               <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
                 🌍 Remote Stream
               </h3>
 
               {remoteStream ? (
-                <video
-                  autoPlay
-                  playsInline
-                  ref={(video) => video && (video.srcObject = remoteStream)}
-                  className="w-full h-[260px] rounded-lg object-cover bg-black shadow-inner"
-                />
+                <>
+                  <video
+                    autoPlay
+                    playsInline
+                    ref={(video) => video && (video.srcObject = remoteStream)}
+                    className="w-full h-[260px] rounded-lg object-cover bg-black shadow-inner"
+                  />
+                  {isRemoteMuted && (
+                    <div className="absolute top-8 right-4 bg-red-500/90 text-white px-3 py-1 rounded-lg text-sm font-semibold flex items-center gap-1">
+                      🔇 Muted
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="w-full h-[260px] flex items-center justify-center rounded-lg bg-black/60 text-gray-400">
                   No remote stream yet

@@ -25,7 +25,7 @@ const io = new Server(server, {
     }
 });
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/videos";
+const MONGO_URI = process.env.MONGO_URI;
 
 mongoose.connect(MONGO_URI, {
 }).then(() => {

@@ -14,13 +14,14 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem("token"));
+  const url = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     const checkAuth = async () => {
       const storedToken = localStorage.getItem("token");
       if (storedToken) {
         try {
-          const response = await fetch("http://localhost:5000/api/auth/me", {
+          const response = await fetch(`${url}/api/auth/me`, {
             headers: {
               Authorization: `Bearer ${storedToken}`,
             },
@@ -47,7 +48,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const response = await fetch(`${url}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -72,7 +73,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (name, email, password) => {
     try {
-      const response = await fetch("http://localhost:5000/api/auth/register", {
+      const response = await fetch(`${url}/api/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -98,7 +99,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       if (token) {
-        await fetch("http://localhost:5000/api/auth/logout", {
+        await fetch(`${url}/api/auth/logout`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
