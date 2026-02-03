@@ -258,7 +258,7 @@ const Room = () => {
                     muted
                     playsInline
                     ref={(video) => video && (video.srcObject = myStream)}
-                    className="w-full h-[260px] rounded-lg object-cover bg-black shadow-inner"
+                    className="w-full h-[260px] rounded-lg object-cover bg-black shadow-inner scale-x-[-1]"
                   />
                   {isMuted && (
                     <div className="absolute top-8 right-4 bg-red-500/90 text-white px-3 py-1 rounded-lg text-sm font-semibold flex items-center gap-1">
@@ -285,7 +285,7 @@ const Room = () => {
                     autoPlay
                     playsInline
                     ref={(video) => video && (video.srcObject = remoteStream)}
-                    className="w-full h-[260px] rounded-lg object-cover bg-black shadow-inner"
+                    className="w-full h-[260px] rounded-lg object-cover bg-black shadow-inner scale-x-[-1]"
                   />
                   {isRemoteMuted && (
                     <div className="absolute top-8 right-4 bg-red-500/90 text-white px-3 py-1 rounded-lg text-sm font-semibold flex items-center gap-1">

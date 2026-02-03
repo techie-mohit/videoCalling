@@ -63,7 +63,7 @@ io.use(async (socket, next) => {
 });
 
 io.on("connection", (socket) => {
-    console.log("New authenticated client connected:", socket.id, "Email:", socket.userEmail);
+    // console.log("New authenticated client connected:", socket.id, "Email:", socket.userEmail);
 
     socket.on("joinRoom", async (data) => {
         const {email, roomId} = data;
@@ -119,7 +119,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("disconnect", () => {
-        console.log("Client disconnected:", socket.id);
+        // console.log("Client disconnected:", socket.id);
         const email = socketIdToEmailMap.get(socket.id);
         if (email) {
             emailToSocketIdMap.delete(email);
