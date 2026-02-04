@@ -34,6 +34,13 @@ const Room = () => {
   setMyStream(stream);
   setCallActive(true);
 
+  // Handle ICE candidates
+  peer.peer.onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.emit("iceCandidate", { to: remoteSocketId, candidate: event.candidate });
+    }
+  };
+
   // ✅ add tracks BEFORE offer
   stream.getTracks().forEach(track => {
     peer.peer.addTrack(track, stream);
@@ -55,6 +62,13 @@ const Room = () => {
 
     setMyStream(stream);
     setCallActive(true);
+
+    // Handle ICE candidates
+    peer.peer.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit("iceCandidate", { to: from, candidate: event.candidate });
+      }
+    };
 
     const ans = await peer.getAnswer(offer);
     socket.emit("callAccepted", { to: from, answer: ans });
@@ -190,6 +204,16 @@ const Room = () => {
 
     socket.on("negotiationFinal", handleNegotiationFinal);
 
+    socket.on("iceCandidate", async ({ candidate }) => {
+      try {
+        if (peer.peer && candidate) {
+          await peer.peer.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+      } catch (error) {
+        console.error("Error adding ICE candidate:", error);
+      }
+    });
+
     socket.on("callEnded", () => {
       stopCall();
     });
@@ -204,6 +228,7 @@ const Room = () => {
       socket.off("callAccepted", handleCallAccepted);
       socket.off("negotiationneed", handleNegotiationIncoming);
       socket.off("negotiationFinal", handleNegotiationFinal);
+      socket.off("iceCandidate");
       socket.off("callEnded");
       socket.off("remoteMuted");
     };

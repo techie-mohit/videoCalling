@@ -108,6 +108,12 @@ io.on("connection", (socket) => {
         io.to(to).emit("negotiationFinal", {from: socket.id, answer});
     });
 
+    // ICE candidate relay - critical for cross-device connections
+    socket.on("iceCandidate", (data) => {
+        const {to, candidate} = data;
+        io.to(to).emit("iceCandidate", {from: socket.id, candidate});
+    });
+
     socket.on("endCall", (data) => {
         const {to} = data;
         io.to(to).emit("callEnded");
