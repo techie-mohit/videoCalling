@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from "react";
+import React, { useEffect, useCallback, useState, useRef } from "react";
 import { useSocket } from "../context/SocketProvider";
 import { useNavigate } from "react-router-dom";
 import peer from "../services/peer";
@@ -14,6 +14,10 @@ const Room = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [isRemoteMuted, setIsRemoteMuted] = useState(false);
   const [callActive, setCallActive] = useState(false);
+  const [peerKey, setPeerKey] = useState(0); // Used to re-attach peer event listeners
+  
+  const myVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
 
   // New user joined handler
 
@@ -83,12 +87,13 @@ const Room = () => {
   }, [remoteSocketId, socket]);
 
   useEffect(() => {
-    peer.peer.addEventListener('negotiationneeded', handleNegotiationNeeded);
+    const currentPeer = peer.peer;
+    currentPeer.addEventListener('negotiationneeded', handleNegotiationNeeded);
 
     return () => {
-      peer.peer.removeEventListener('negotiationneeded', handleNegotiationNeeded);
+      currentPeer.removeEventListener('negotiationneeded', handleNegotiationNeeded);
     }
-  }, [handleNegotiationNeeded])
+  }, [handleNegotiationNeeded, peerKey])
 
   const handleNegotiationIncoming = useCallback(async ({ from, offer }) => {
     const ans = await peer.getAnswer(offer);
@@ -107,8 +112,16 @@ const Room = () => {
       setMyStream(null);
     }
 
-    // Close peer connection
-    peer.peer.close();
+    // Notify other user BEFORE resetting
+    if (remoteSocketId) {
+      socket.emit("endCall", { to: remoteSocketId });
+    }
+
+    // Reset peer connection (close old one and create new)
+    peer.resetPeer();
+    
+    // Increment peerKey to re-attach event listeners
+    setPeerKey(prev => prev + 1);
     
     // Reset states
     setCallActive(false);
@@ -116,11 +129,6 @@ const Room = () => {
     setIsRemoteMuted(false);
     setRemoteStream(null);
     setRemoteSocketId(null);
-
-    // Notify other user
-    if (remoteSocketId) {
-      socket.emit("endCall", { to: remoteSocketId });
-    }
 
     // Navigate back to lobby
     navigate("/lobby");
@@ -146,14 +154,29 @@ const Room = () => {
   }, [myStream, isMuted, remoteSocketId, socket]);
 
   useEffect(() => {
+  const currentPeer = peer.peer;
   const handleTrack = (ev) => {
     const [stream] = ev.streams;
     setRemoteStream(stream);
   };
 
-  peer.peer.addEventListener("track", handleTrack);
-  return () => peer.peer.removeEventListener("track", handleTrack);
-}, []);
+  currentPeer.addEventListener("track", handleTrack);
+  return () => currentPeer.removeEventListener("track", handleTrack);
+}, [peerKey]);
+
+  // Set myStream to video element only when stream changes
+  useEffect(() => {
+    if (myVideoRef.current && myStream) {
+      myVideoRef.current.srcObject = myStream;
+    }
+  }, [myStream]);
+
+  // Set remoteStream to video element only when stream changes
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
 
   useEffect(() => {
@@ -241,7 +264,7 @@ const Room = () => {
               )}
             </div>
           </div>
-
+l̥
           {/* Video Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -257,7 +280,7 @@ const Room = () => {
                     autoPlay
                     muted
                     playsInline
-                    ref={(video) => video && (video.srcObject = myStream)}
+                    ref={myVideoRef}
                     className="w-full h-[260px] rounded-lg object-cover bg-black shadow-inner scale-x-[-1]"
                   />
                   {isMuted && (
@@ -284,7 +307,7 @@ const Room = () => {
                   <video
                     autoPlay
                     playsInline
-                    ref={(video) => video && (video.srcObject = remoteStream)}
+                    ref={remoteVideoRef}
                     className="w-full h-[260px] rounded-lg object-cover bg-black shadow-inner scale-x-[-1]"
                   />
                   {isRemoteMuted && (
