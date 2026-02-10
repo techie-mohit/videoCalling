@@ -26,10 +26,12 @@ router.post("/register", async (req, res) => {
 
     const token = user.generateAuthToken();
 
+    // Ensure NODE_ENV has a value (default to 'development' if not set)
+    const env = process.env.NODE_ENV || 'development';
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: env === "production",
+      sameSite: env === "production" ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
