@@ -13,32 +13,21 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem("token"));
   const url = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     const checkAuth = async () => {
-      const storedToken = localStorage.getItem("token");
-      if (storedToken) {
-        try {
-          const response = await fetch(`${url}/api/auth/me`, {
-            headers: {
-              Authorization: `Bearer ${storedToken}`,
-            },
-          });
+      try {
+        const response = await fetch(`${url}/api/auth/me`, {
+          credentials: "include",
+        });
 
-          if (response.ok) {
-            const data = await response.json();
-            setUser(data.user);
-            setToken(storedToken);
-          } else {
-            localStorage.removeItem("token");
-            setToken(null);
-          }
-        } catch (error) {
-          localStorage.removeItem("token");
-          setToken(null);
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
         }
+      } catch (error) {
+        // not authenticated
       }
       setLoading(false);
     };
@@ -53,6 +42,7 @@ export const AuthProvider = ({ children }) => {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
@@ -62,8 +52,6 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.error || "Login failed");
       }
 
-      localStorage.setItem("token", data.token);
-      setToken(data.token);
       setUser(data.user);
       return { success: true };
     } catch (error) {
@@ -78,6 +66,7 @@ export const AuthProvider = ({ children }) => {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ name, email, password }),
       });
 
@@ -87,8 +76,6 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.error || "Registration failed");
       }
 
-      localStorage.setItem("token", data.token);
-      setToken(data.token);
       setUser(data.user);
       return { success: true };
     } catch (error) {
@@ -98,26 +85,19 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      if (token) {
-        await fetch(`${url}/api/auth/logout`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-      }
+      await fetch(`${url}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
     } catch (error) {
       // ignore
     } finally {
-      localStorage.removeItem("token");
-      setToken(null);
       setUser(null);
     }
   };
 
   const value = {
     user,
-    token,
     login,
     register,
     logout,

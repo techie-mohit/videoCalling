@@ -4,15 +4,20 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
-import jwt from "jsonwebtoken";
+import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.js";
-import User from "./models/User.js";
 
 dotenv.config();
 const app = express();
 
-app.use(cors());
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+
+app.use(cors({
+    origin: CLIENT_URL,
+    credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 // Auth routes
 app.use("/api/auth", authRoutes);
@@ -20,8 +25,9 @@ app.use("/api/auth", authRoutes);
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: { 
-        origin: "*",
-        methods: ["GET", "POST"]
+        origin: CLIENT_URL,
+        methods: ["GET", "POST"],
+        credentials: true
     }
 });
 const PORT = process.env.PORT || 5000;
@@ -36,53 +42,30 @@ mongoose.connect(MONGO_URI, {
 });
 
 
-const emailToSocketIdMap = new Map();
-const socketIdToEmailMap = new Map();
-
-io.use(async (socket, next) => {
-    try {
-        const token = socket.handshake.auth?.token;
-        if (!token) {
-            return next(new Error("Authentication failed"));
-        }
-
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
-        const user = await User.findById(decoded._id);
-
-        if (!user) {
-            return next(new Error("Authentication failed"));
-        }
-
-        socket.userId = user._id.toString();
-        socket.userEmail = user.email;
-        socket.userName = user.name;
-        next();
-    } catch (error) {
-        next(new Error("Authentication failed"));
-    }
-});
+const users = new Map(); // socketId -> { email, roomId }
 
 io.on("connection", (socket) => {
-    // console.log("New authenticated client connected:", socket.id, "Email:", socket.userEmail);
 
-    socket.on("joinRoom", async (data) => {
+    socket.on("joinRoom", (data) => {
         const {email, roomId} = data;
 
-        if (email !== socket.userEmail) {
-            socket.emit("error", { message: "Only your registered email can join the room" });
-            return;
-        }
-
-        const user = await User.findOne({ email: socket.userEmail });
-        if (!user) {
-            socket.emit("error", { message: "User not found in database" });
-            return;
-        }
-
-        emailToSocketIdMap.set(email, socket.id);
-        socketIdToEmailMap.set(socket.id, email);
-
+        users.set(socket.id, { email, roomId });
         socket.join(roomId);
+
+        // Tell the joining user about anyone already in the room
+        const roomMembers = io.sockets.adapter.rooms.get(roomId);
+        if (roomMembers) {
+            for (const memberId of roomMembers) {
+                if (memberId !== socket.id) {
+                    const memberData = users.get(memberId);
+                    if (memberData) {
+                        io.to(socket.id).emit("existingUser", { email: memberData.email, id: memberId });
+                    }
+                }
+            }
+        }
+
+        // Tell existing room members about the new user
         socket.to(roomId).emit("newUserJoined", {email, id: socket.id});
         io.to(socket.id).emit("userJoined", data);
     });
@@ -125,12 +108,11 @@ io.on("connection", (socket) => {
     });
 
     socket.on("disconnect", () => {
-        // console.log("Client disconnected:", socket.id);
-        const email = socketIdToEmailMap.get(socket.id);
-        if (email) {
-            emailToSocketIdMap.delete(email);
+        const userData = users.get(socket.id);
+        if (userData) {
+            socket.to(userData.roomId).emit("userLeft", { email: userData.email, id: socket.id });
         }
-        socketIdToEmailMap.delete(socket.id);
+        users.delete(socket.id);
     });
 });     
 
