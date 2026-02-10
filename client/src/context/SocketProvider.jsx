@@ -17,9 +17,12 @@ const url = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const SocketProvider = (props) => {
     const { user } = useAuth();
 
-    const socket = useMemo(() => io(url, {
-        withCredentials: true,
-    }), [user])
+    const socket = useMemo(() => {
+        if (!user) return null;
+        return io(url, {
+            withCredentials: true,
+        });
+    }, [user])
   return (
     <SocketContext.Provider value={socket}>
       {props.children}
