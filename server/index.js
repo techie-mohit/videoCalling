@@ -10,10 +10,20 @@ import authRoutes from "./routes/auth.js";
 dotenv.config();
 const app = express();
 
-const CLIENT_URL = process.env.Frontend_URL || "http://localhost:5173";
+const allowedOrigins = [
+    process.env.Frontend_URL
+].filter(Boolean);
 
 app.use(cors({
-    origin: CLIENT_URL,
+    origin: function (origin, callback) {
+        // allow requests with no origin (e.g. mobile apps, curl)
+        if (!origin) return callback(null, true);
+        // allow any localhost origin (any port) for development
+        if (origin.match(/^http:\/\/localhost:\d+$/)) return callback(null, true);
+        // allow production origin
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        callback(new Error("Not allowed by CORS"));
+    },
     credentials: true
 }));
 app.use(express.json());
@@ -25,7 +35,12 @@ app.use("/api/auth", authRoutes);
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: { 
-        origin: CLIENT_URL,
+        origin: function (origin, callback) {
+            if (!origin) return callback(null, true);
+            if (origin.match(/^http:\/\/localhost:\d+$/)) return callback(null, true);
+            if (allowedOrigins.includes(origin)) return callback(null, true);
+            callback(new Error("Not allowed by CORS"));
+        },
         methods: ["GET", "POST"],
         credentials: true
     }
