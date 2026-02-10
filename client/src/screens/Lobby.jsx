@@ -1,6 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from "react";
-import { useSocket } from "../context/SocketProvider";
+import React, { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
 
@@ -8,7 +7,6 @@ const Lobby = () => {
   const [roomId, setRoomId] = useState("");
   const [error, setError] = useState("");
 
-  const socket = useSocket();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
@@ -31,27 +29,9 @@ const Lobby = () => {
       return;
     }
 
-    socket.emit('joinRoom', {email: user.email, roomId});
-  },[roomId, socket, user]);
-
-  const handleJoinRoom = useCallback((data)=>{
-    const {roomId} = data;
-    setRoomId("");
-    navigate(`/room/${roomId}`);
-  },[navigate]);
-
-  useEffect(()=>{
-    socket.on("userJoined", handleJoinRoom);
-    socket.on("error", (errorData) => {
-      setError(errorData.message);
-    });
-
-    return () => {
-      socket.off("userJoined", handleJoinRoom);
-      socket.off("error");
-    };
-
-  },[socket, handleJoinRoom]);
+    // Navigate directly to Room — Room will emit joinRoom on mount
+    navigate(`/room/${roomId.trim()}`);
+  },[roomId, navigate, user]);
 
   return (
    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-4">
