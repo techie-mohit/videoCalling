@@ -59,18 +59,33 @@ mongoose.connect(MONGO_URI, {
 
 const users = new Map(); // socketId -> { email, roomId }
 
+const MAX_ROOM_SIZE = 2; // 1-to-1 video calling limit
+
 io.on("connection", (socket) => {
 
     socket.on("joinRoom", (data) => {
         const {email, roomId} = data;
 
+        // Check if room is already full (2 users max for 1-to-1 calling)
+        const roomMembers = io.sockets.adapter.rooms.get(roomId);
+        const currentRoomSize = roomMembers ? roomMembers.size : 0;
+
+        if (currentRoomSize >= MAX_ROOM_SIZE) {
+            // Room is full, notify the user
+            io.to(socket.id).emit("roomFull", { 
+                roomId, 
+                message: "This room already has 2 users connected. Please try a different room ID." 
+            });
+            return;
+        }
+
         users.set(socket.id, { email, roomId });
         socket.join(roomId);
 
         // Tell the joining user about anyone already in the room
-        const roomMembers = io.sockets.adapter.rooms.get(roomId);
-        if (roomMembers) {
-            for (const memberId of roomMembers) {
+        const updatedRoomMembers = io.sockets.adapter.rooms.get(roomId);
+        if (updatedRoomMembers) {
+            for (const memberId of updatedRoomMembers) {
                 if (memberId !== socket.id) {
                     const memberData = users.get(memberId);
                     if (memberData) {

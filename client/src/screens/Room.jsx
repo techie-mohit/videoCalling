@@ -276,6 +276,15 @@ const Room = () => {
     socket.on('callEnded', () => stopCall());
     socket.on('remoteMuted', ({ isMuted }) => setIsRemoteMuted(isMuted));
 
+    socket.on('roomFull', ({ roomId, message }) => {
+      // Room is full, redirect back to lobby with error message
+      navigate('/lobby', { 
+        state: { 
+          error: message || `Room "${roomId}" is full. Two users are already connected.` 
+        } 
+      });
+    });
+
     socket.on('userLeft', () => {
       peer.resetPeer();
       setPeerKey((p) => p + 1);
@@ -296,10 +305,12 @@ const Room = () => {
       socket.off('iceCandidate');
       socket.off('callEnded');
       socket.off('remoteMuted');
+      socket.off('roomFull');
       socket.off('userLeft');
     };
   }, [
     socket,
+    navigate,
     handleUserJoined,
     handleExistingUser,
     handleIncomingCall,

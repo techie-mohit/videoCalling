@@ -1,6 +1,6 @@
 
-import React, { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useCallback, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
 
 const Lobby = () => {
@@ -8,7 +8,17 @@ const Lobby = () => {
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
+
+  // Check if redirected from a full room
+  useEffect(() => {
+    if (location.state?.error) {
+      setError(location.state.error);
+      // Clear the state so error doesn't persist on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const handleLogout = async () => {
     await logout();
