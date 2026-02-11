@@ -23,6 +23,7 @@ const Room = () => {
   const cameraPromiseRef = useRef(null);
   const waitingForCallRef = useRef(false);
   const iceCandidateBuffer = useRef([]);
+  const joinedRoomRef = useRef(false);
 
   // Shared camera helper - prevents duplicate getUserMedia calls
   const getCamera = useCallback(async () => {
@@ -44,13 +45,9 @@ const Room = () => {
     return cameraPromiseRef.current;
   }, []);
 
-  // Get camera + join room on mount (handles page refresh)
+  // Get camera on mount
   useEffect(() => {
     getCamera();
-    if (user?.email && roomId) {
-      socket.emit('joinRoom', { email: user.email, roomId });
-    }
-    return () => {};
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup camera on unmount
@@ -249,8 +246,18 @@ const Room = () => {
     if (remoteVideoRef.current && remoteStream) remoteVideoRef.current.srcObject = remoteStream;
   }, [remoteStream]);
 
-  // Socket event listeners
+  // Socket event listeners - MUST be set up before emitting joinRoom
   useEffect(() => {
+    // Set up roomFull listener FIRST to catch immediate responses
+    socket.on('roomFull', ({ roomId: fullRoomId, message }) => {
+      // Room is full, redirect back to lobby with error message
+      navigate('/lobby', { 
+        state: { 
+          error: message || `Room "${fullRoomId}" is full. Two users are already connected.` 
+        } 
+      });
+    });
+
     socket.on('newUserJoined', handleUserJoined);
     socket.on('existingUser', handleExistingUser);
     socket.on('incomingCall', handleIncomingCall);
@@ -276,15 +283,6 @@ const Room = () => {
     socket.on('callEnded', () => stopCall());
     socket.on('remoteMuted', ({ isMuted }) => setIsRemoteMuted(isMuted));
 
-    socket.on('roomFull', ({ roomId, message }) => {
-      // Room is full, redirect back to lobby with error message
-      navigate('/lobby', { 
-        state: { 
-          error: message || `Room "${roomId}" is full. Two users are already connected.` 
-        } 
-      });
-    });
-
     socket.on('userLeft', () => {
       peer.resetPeer();
       setPeerKey((p) => p + 1);
@@ -294,6 +292,12 @@ const Room = () => {
       setIsRemoteMuted(false);
       waitingForCallRef.current = false;
     });
+
+    // NOW emit joinRoom after all listeners are set up (only once)
+    if (user?.email && roomId && !joinedRoomRef.current) {
+      joinedRoomRef.current = true;
+      socket.emit('joinRoom', { email: user.email, roomId });
+    }
 
     return () => {
       socket.off('newUserJoined', handleUserJoined);
@@ -311,6 +315,8 @@ const Room = () => {
   }, [
     socket,
     navigate,
+    user,
+    roomId,
     handleUserJoined,
     handleExistingUser,
     handleIncomingCall,

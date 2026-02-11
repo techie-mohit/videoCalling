@@ -12,7 +12,7 @@ const app = express();
 
 const allowedOrigins = [
     process.env.Frontend_URL
-].filter(Boolean);
+].filter(Boolean);    // It ensures that only valid, truthy environment variables are included in the allowed origins array, preventing undefined or empty values from causing CORS misconfiguration.
 
 app.use(cors({
     origin: function (origin, callback) {
