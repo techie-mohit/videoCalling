@@ -22,6 +22,7 @@ const Room = () => {
   const myStreamRef = useRef(null);
   const cameraPromiseRef = useRef(null);
   const waitingForCallRef = useRef(false);
+  const iceCandidateBuffer = useRef([]);
 
   // Shared camera helper - prevents duplicate getUserMedia calls
   const getCamera = useCallback(async () => {
@@ -126,6 +127,17 @@ const Room = () => {
 
       // Correct callee order: setRemoteDescription -> addTrack -> createAnswer
       await peer.peer.setRemoteDescription(offer);
+
+      // Flush any ICE candidates that arrived before remote description was set
+      for (const c of iceCandidateBuffer.current) {
+        try {
+          await peer.peer.addIceCandidate(new RTCIceCandidate(c));
+        } catch (e) {
+          console.error('Error adding buffered ICE candidate:', e);
+        }
+      }
+      iceCandidateBuffer.current = [];
+
       for (const track of stream.getTracks()) {
         peer.peer.addTrack(track, stream);
       }
@@ -138,6 +150,16 @@ const Room = () => {
 
   const handleCallAccepted = useCallback(async ({ answer }) => {
     await peer.setRemoteAnswer(answer);
+
+    // Flush any ICE candidates that arrived before remote description was set
+    for (const c of iceCandidateBuffer.current) {
+      try {
+        await peer.peer.addIceCandidate(new RTCIceCandidate(c));
+      } catch (e) {
+        console.error('Error adding buffered ICE candidate:', e);
+      }
+    }
+    iceCandidateBuffer.current = [];
   }, []);
 
   const handleNegotiationNeeded = useCallback(async () => {
@@ -205,26 +227,18 @@ const Room = () => {
   }, [peerKey]);
 
   // Auto-call: only when we are the EXISTING user (not waiting for call)
-  const shouldAutoCallRef = useRef(false);
   useEffect(() => {
     if (remoteSocketId && myStream && !callActive && !waitingForCallRef.current) {
-      // Add a small delay to allow signaling to settle (prevents race on first join)
-      shouldAutoCallRef.current = true;
-    }
-  }, [remoteSocketId, myStream, callActive]);
-
-  useEffect(() => {
-    if (shouldAutoCallRef.current) {
-      shouldAutoCallRef.current = false;
-      setTimeout(() => {
-        // Double-check conditions before calling
+      // Small delay to let signaling settle, then auto-call
+      const timer = setTimeout(() => {
         if (remoteSocketId && myStreamRef.current && !callActive && !waitingForCallRef.current) {
           console.log('[Room] Auto-calling remote user', remoteSocketId);
           handleCallUser();
         }
-      }, 100);
+      }, 300);
+      return () => clearTimeout(timer);
     }
-  }, [handleCallUser, remoteSocketId, callActive]);
+  }, [remoteSocketId, myStream, callActive, handleCallUser]);
 
   // Attach streams to video elements
   useEffect(() => {
@@ -247,7 +261,12 @@ const Room = () => {
     socket.on('iceCandidate', async ({ candidate }) => {
       try {
         if (peer.peer && candidate) {
-          await peer.peer.addIceCandidate(new RTCIceCandidate(candidate));
+          if (peer.peer.remoteDescription && peer.peer.remoteDescription.type) {
+            await peer.peer.addIceCandidate(new RTCIceCandidate(candidate));
+          } else {
+            // Buffer candidates that arrive before remote description is set
+            iceCandidateBuffer.current.push(candidate);
+          }
         }
       } catch (err) {
         console.error('Error adding ICE candidate:', err);
