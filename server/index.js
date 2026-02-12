@@ -111,17 +111,18 @@ io.on("connection", (socket) => {
         io.to(to).emit("callAccepted", {from: socket.id, answer});
     });
 
-    socket.on("negotiationneed", (data) => {
-        const {to, offer} = data;
-        io.to(to).emit("negotiationneed", {from: socket.id, offer});
-    });
+    // socket.on("negotiationneed", (data) => {
+    //     const {to, offer} = data;
+    //     io.to(to).emit("negotiationneed", {from: socket.id, offer});
+    // });
 
-    socket.on("negotiationDone", (data) => {
-        const {to, answer} = data;
-        io.to(to).emit("negotiationFinal", {from: socket.id, answer});
-    });
+    // socket.on("negotiationDone", (data) => {
+    //     const {to, answer} = data;
+    //     io.to(to).emit("negotiationFinal", {from: socket.id, answer});
+    // });
 
     // ICE candidate relay - critical for cross-device connections
+   
     socket.on("iceCandidate", (data) => {
         const {to, candidate} = data;
         io.to(to).emit("iceCandidate", {from: socket.id, candidate});
@@ -132,9 +133,23 @@ io.on("connection", (socket) => {
         io.to(to).emit("callEnded");
     });
 
+    socket.on("leaveRoom", () => {
+        const userData = users.get(socket.id);
+        if (userData) {
+            socket.leave(userData.roomId);
+            socket.to(userData.roomId).emit("userLeft", { email: userData.email, id: socket.id });
+            users.delete(socket.id);
+        }
+    });
+
     socket.on("muteToggle", (data) => {
         const {to, isMuted} = data;
         io.to(to).emit("remoteMuted", {isMuted});
+    });
+
+    socket.on("videoToggle", (data) => {
+        const {to, isVideoOff} = data;
+        io.to(to).emit("remoteVideoOff", {isVideoOff});
     });
 
     socket.on("disconnect", () => {
