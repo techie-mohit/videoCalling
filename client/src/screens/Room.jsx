@@ -92,8 +92,7 @@ const Room = () => {
   }, [socket]);
 
   // Someone NEW joined our room — we are the existing user, we should call them
-  const handleUserJoined = useCallback(
-    ({ id, email }) => {
+  const handleUserJoined = useCallback(({ id, email }) => {
       console.log(
         "[Room] newUserJoined: I am the existing user, will call",
         id,
@@ -288,6 +287,7 @@ const Room = () => {
   }, [peerKey]);
 
   // Auto-call: only when we are the EXISTING user (not waiting for call)
+  // this run when second User and join and first user is already there, then first user will auto call second user, so we don't need start call button, just wait for call and accept it on handler newUserJoined
   useEffect(() => {
     if (
       remoteSocketId &&
@@ -327,12 +327,19 @@ const Room = () => {
 
     // Set up roomFull listener FIRST to catch immediate responses
     socket.on("roomFull", ({ roomId: fullRoomId, message }) => {
+      // Stop camera and microphone for third user
+      if (myStreamRef.current) {
+        myStreamRef.current.getTracks().forEach((t) => t.stop());
+        myStreamRef.current = null;
+        setMyStream(null);
+      }
+      cameraPromiseRef.current = null;
       // Room is full, redirect back to lobby with error message
       navigate("/lobby", {
         state: {
           error:
             message ||
-            `Room "${fullRoomId}" is full. Two users are already connected.`,
+            `Room \"${fullRoomId}\" is full. Two users are already connected.`,
         },
       });
     });
@@ -346,7 +353,7 @@ const Room = () => {
 
     socket.on("iceCandidate", async ({ candidate }) => {
       try {
-        if (peer.peer && candidate) {
+        if (peer.peer && candidate) {     // peer.peer means the RTCPeerConnection instance inside our peer service
           if (peer.peer.remoteDescription && peer.peer.remoteDescription.type) {
             await peer.peer.addIceCandidate(new RTCIceCandidate(candidate));
           } else {
