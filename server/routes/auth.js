@@ -40,6 +40,7 @@ router.post("/register", async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        roomId: user.roomId,
       },
     });
   } catch (error) {
@@ -76,6 +77,7 @@ router.post("/login", async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        roomId: user.roomId,
       },
     });
   } catch (error) {
@@ -89,6 +91,7 @@ router.get("/me", authenticate, async (req, res) => {
       _id: req.user._id,
       name: req.user.name,
       email: req.user.email,
+      roomId: req.user.roomId,
     },
   });
 });

@@ -3,8 +3,12 @@ import { Route, Routes, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthProvider'
 import Login from './screens/Login'
 import Register from './screens/Register'
+import Dashboard from './screens/Dashboard'
 import Lobby from './screens/Lobby'
 import Room from './screens/Room'
+import Chat from './screens/Chat'
+import AudioLobby from './screens/AudioLobby'
+import AudioRoom from './screens/AudioRoom'
 import ProtectedRoute from './components/ProtectedRoute'
 
 const App = () => {
@@ -22,10 +26,18 @@ const App = () => {
     <Routes>
       <Route 
         path="/" 
-        element={isAuthenticated ? <Navigate to="/lobby" replace /> : <Navigate to="/login" replace />} 
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} 
       />
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/lobby" replace /> : <Login />} />
-      <Route path="/register" element={isAuthenticated ? <Navigate to="/lobby" replace /> : <Register />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
+      <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />} />
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } 
+      />
       <Route 
         path="/lobby" 
         element={
@@ -39,6 +51,30 @@ const App = () => {
         element={
           <ProtectedRoute>
             <Room />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/chat" 
+        element={
+          <ProtectedRoute>
+            <Chat />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/audio" 
+        element={
+          <ProtectedRoute>
+            <AudioLobby />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/audio/:roomId" 
+        element={
+          <ProtectedRoute>
+            <AudioRoom />
           </ProtectedRoute>
         } 
       />

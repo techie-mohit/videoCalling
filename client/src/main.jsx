@@ -5,13 +5,16 @@ import App from './App.jsx'
 import { BrowserRouter } from "react-router-dom";
 import SocketProvider from './context/SocketProvider.jsx';
 import { AuthProvider } from './context/AuthProvider.jsx';
+import { ChatProvider } from './context/ChatProvider.jsx';
 
 createRoot(document.getElementById('root')).render(
 
     <BrowserRouter>
       <AuthProvider>
         <SocketProvider>
-          <App />
+          <ChatProvider>
+            <App />
+          </ChatProvider>
         </SocketProvider>
       </AuthProvider>
     </BrowserRouter>

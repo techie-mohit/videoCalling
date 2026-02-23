@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -18,6 +19,19 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, "Please provide a password"],
     minlength: 6,
+  },
+  roomId: {
+    type: String,
+    unique: true,
+    default: () => crypto.randomUUID(),
+  },
+  avatar: {
+    type: String,
+    default: "",
+  },
+  lastSeen: {
+    type: Date,
+    default: Date.now,
   },
   createdAt: {
     type: Date,
