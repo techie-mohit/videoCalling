@@ -24,56 +24,79 @@ const AudioLobby = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-amber-950 to-orange-950 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-white/20 bg-white/10 p-8 shadow-2xl backdrop-blur-xl">
-        {/* Back button */}
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="mb-6 flex items-center gap-2 text-white/60 hover:text-white transition text-sm"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-          </svg>
-          Back to Dashboard
-        </button>
+    /* BACKGROUND: Consistent Slate Blue */
+    <div className="min-h-screen flex items-center justify-center bg-[#1e2a4a] p-4 relative overflow-hidden font-sans">
+      
+      {/* Background Ambience - Tinted Orange for Audio Context */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(245,158,11,0.08),transparent_70%)]"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-orange-500/5 rounded-full animate-[spin_60s_linear_infinite] opacity-20"></div>
 
-        {/* Heading */}
-        <h1 className="mb-6 text-center text-3xl font-bold text-white">🎙️ Join Audio Room</h1>
-
-        {error && (
-          <div className="mb-4 rounded-lg bg-red-500/20 border border-red-500/50 p-3 text-center text-sm text-red-200">
-            {error}
-          </div>
-        )}
-
-        <div className="mb-6 rounded-lg bg-amber-500/20 border border-amber-500/50 p-3 text-center text-sm text-amber-100">
-          🎧 Joining as: <span className="font-semibold">{user?.email}</span>
+      <div className="w-full max-w-md relative z-10">
+        
+        {/* HIGHLIGHTED: Back to Dashboard Button (With Orange Hover) */}
+        <div className="flex justify-start mb-6">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-orange-400 hover:bg-orange-500/10 hover:border-orange-500/30 hover:text-orange-300 transition-all duration-300 backdrop-blur-md shadow-lg group"
+          >
+            <span className="transition-transform group-hover:-translate-x-1">←</span>
+            <span className="text-xs font-bold uppercase tracking-widest">Dashboard</span>
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-white/80 mb-2">Room ID</label>
-            <input
-              type="text"
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
-              required
-              placeholder="Enter room ID for audio call"
-              className="w-full rounded-lg border border-white/40 bg-transparent px-4 py-3 text-white caret-amber-400 placeholder-white/60 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
-            />
+        {/* Main Card */}
+        <div className="rounded-[2.5rem] border border-white/10 bg-[#2d3b5e]/60 p-8 shadow-2xl backdrop-blur-xl ring-1 ring-white/5">
+          
+          {/* User Profile Header (Simple Font) */}
+          <div className="mb-8 flex items-center justify-center border-b border-white/5 pb-6">
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 text-white font-bold shadow-lg shadow-orange-500/20">
+                {user?.name?.charAt(0).toUpperCase()}
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-semibold text-white tracking-normal">{user?.name}</p>
+                <p className="text-sm text-slate-400 font-normal lowercase">{user?.email}</p>
+              </div>
+            </div>
           </div>
 
-          <button
-            type="submit"
-            className="w-full rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 py-3 font-semibold text-white shadow-lg transition hover:scale-105 hover:shadow-amber-500/50 active:scale-95"
-          >
-            Join Audio Room
-          </button>
-        </form>
+          <h1 className="mb-2 text-center text-3xl font-bold text-white tracking-tight">
+             Join Audio Room
+          </h1>
+          <p className="mb-8 text-center text-sm text-slate-400">
+            Establish a crystal clear voice connection
+          </p>
 
-        <p className="mt-6 text-center text-sm text-white/60">
-          Crystal clear 1-to-1 audio calling 🔒
-        </p>
+          {error && (
+            <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-center text-sm text-red-300 font-medium">
+              {error}
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-xs font-bold text-orange-400 uppercase tracking-widest mb-2 ml-1">
+                Voice Channel ID
+              </label>
+              <input
+                type="text"
+                value={roomId}
+                onChange={(e) => setRoomId(e.target.value)}
+                required
+                placeholder="Enter room ID for audio"
+                className="w-full rounded-2xl border border-white/10 bg-[#1e2a4a]/50 px-5 py-4 text-white caret-orange-400 placeholder-slate-600 outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full rounded-2xl bg-gradient-to-r from-amber-400 to-orange-600 py-4 font-bold text-white shadow-lg shadow-orange-500/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              Start Audio Call
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
